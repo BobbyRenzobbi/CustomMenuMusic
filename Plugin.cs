@@ -11,14 +11,9 @@ namespace BobbyRenzobbi.CustomMenuMusic
     {
         CustomMusicPatch patch = new CustomMusicPatch();
         internal static ManualLogSource LogSource;
-        internal static string[] clips;
-        public static string[] GetTrack()
-        {
-            return Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory + "\\BepInEx\\plugins\\CustomMenuMusic\\music").Select(file => Path.GetFileName(file)).ToArray();
-        }
         private void Awake()
         {
-            clips = GetTrack();
+            CustomMusicPatch.trackList.AddRange(Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory + "\\BepInEx\\plugins\\Soundtrack\\sounds"));
             LogSource = Logger;
             new CustomMusicPatch().Enable();
         }

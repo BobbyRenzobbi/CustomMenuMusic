@@ -8,32 +8,52 @@ using UnityEngine.Networking;
 using System;
 using HarmonyLib;
 using Comfort.Common;
+using System.Linq;
 
 namespace BobbyRenzobbi.CustomMenuMusic
 {
     public class CustomMusicPatch : ModulePatch
     {
         private static int rndNumber = 0;
-        public static Dictionary<string, AudioClip> tracks = new Dictionary<string, AudioClip>();
+        private static string track = "";
+        private static string trackPath = "";
         private static List<AudioClip> audioClips = new List<AudioClip>();
         private static System.Random rand = new System.Random();
+        internal static List<string> trackList = new List<string>();
+        private static List<string> unPlayedTrackList = new List<string>();
+        private static string lastTrack = "";
 
         protected override MethodBase GetTargetMethod()
         {
             return AccessTools.Method(typeof(GUISounds), nameof(GUISounds.method_3));
         }
 
-        private void LoadAudioClips()
+        private void LoadNextTrack()
         {
-            string[] musicTracks = Directory.GetFiles(AppDomain.CurrentDomain.BaseDirectory + "\\BepInEx\\plugins\\CustomMenuMusic\\music");
-
+            if (trackList == null || trackList.Count == 0)
+            {
+                Logger.LogInfo("No music found in the 'sounds' folder");
+                return;
+            }
+            if (unPlayedTrackList.IsNullOrEmpty())
+            {
+                unPlayedTrackList.AddRange(trackList);
+            }
             audioClips.Clear();
-            rndNumber = rand.Next(musicTracks.Length);
-            string fileDir = musicTracks[rndNumber];
-            var clip = RequestAudioClip(fileDir);
-            clip.name = Path.GetFileName(fileDir);
+
+            do
+            {
+                rndNumber = rand.Next(unPlayedTrackList.Count);
+                track = unPlayedTrackList[rndNumber];
+            }
+            while ((track == lastTrack) && trackList.Count > 1);
+
+            unPlayedTrackList.Remove(track);
+            lastTrack = track;
+            var clip = RequestAudioClip(track);
+            trackPath = Path.GetFileName(track);
             audioClips.Add(clip);
-            Logger.LogInfo(clip.name + " added to audioClips");
+            Logger.LogInfo(trackPath + " added to audioClips");
         }
 
         private AudioClip RequestAudioClip(string path)
@@ -63,14 +83,18 @@ namespace BobbyRenzobbi.CustomMenuMusic
         static bool Prefix()
         {
             CustomMusicPatch patch = new CustomMusicPatch();
-            patch.LoadAudioClips();
+            patch.LoadNextTrack();
             //Credit to SamSWAT for discovering that the game loads infinitely if the audioClip_0 array has only one element
+            if (audioClips.Count == 0)
+            {
+                return true;
+            }
             if (audioClips.Count == 1)
             {
                 audioClips.Add(audioClips[0]);
             }
             Traverse.Create(Singleton<GUISounds>.Instance).Field("audioClip_0").SetValue(audioClips.ToArray());
-            Logger.LogInfo("Playing " + audioClips[0].name);
+            Logger.LogInfo("Playing " + trackPath);
             return true;
         }
     }
